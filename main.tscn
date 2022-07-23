@@ -1,0 +1,153 @@
+[gd_scene load_steps=26 format=2]
+
+[ext_resource path="res://states/frame_13_delay-0.03s.png" type="Texture" id=1]
+[ext_resource path="res://states/frame_14_delay-0.03s.png" type="Texture" id=2]
+[ext_resource path="res://states/frame_02_delay-0.03s.png" type="Texture" id=11]
+[ext_resource path="res://states/frame_00_delay-0.03s.png" type="Texture" id=12]
+[ext_resource path="res://states/frame_01_delay-0.03s.png" type="Texture" id=13]
+[ext_resource path="res://states/frame_10_delay-0.03s.png" type="Texture" id=14]
+[ext_resource path="res://states/frame_11_delay-0.03s.png" type="Texture" id=15]
+[ext_resource path="res://states/frame_19_delay-0.03s.png" type="Texture" id=16]
+[ext_resource path="res://states/frame_20_delay-0.03s.png" type="Texture" id=17]
+[ext_resource path="res://states/frame_09_delay-0.03s.png" type="Texture" id=18]
+[ext_resource path="res://states/frame_12_delay-0.03s.png" type="Texture" id=29]
+[ext_resource path="res://states/frame_18_delay-0.03s.png" type="Texture" id=30]
+[ext_resource path="res://states/frame_16_delay-0.03s.png" type="Texture" id=31]
+[ext_resource path="res://states/frame_07_delay-0.03s.png" type="Texture" id=32]
+[ext_resource path="res://states/frame_04_delay-0.03s.png" type="Texture" id=33]
+[ext_resource path="res://states/frame_08_delay-0.03s.png" type="Texture" id=34]
+[ext_resource path="res://states/frame_06_delay-0.03s.png" type="Texture" id=35]
+[ext_resource path="res://states/frame_03_delay-0.03s.png" type="Texture" id=36]
+[ext_resource path="res://states/frame_05_delay-0.03s.png" type="Texture" id=37]
+[ext_resource path="res://states/frame_17_delay-0.03s.png" type="Texture" id=38]
+[ext_resource path="res://states/frame_15_delay-0.03s.png" type="Texture" id=39]
+
+[sub_resource type="AudioStreamMicrophone" id=6]
+
+[sub_resource type="GDScript" id=3]
+script/source = "extends AudioStreamPlayer
+
+var spectrum
+var volume
+
+var samples = []
+var samples_pointer = 0
+var samples_first_run = true
+
+var config
+
+func _ready():
+	config = ConfigFile.new()
+	var err = config.load(\"user://avatar.cfg\")
+	if err != OK:
+		config.set_value(\"Audio\", \"max_samples\", 600)
+		config.set_value(\"Voice\", \"lower_end_frequency_range\", 125)
+		config.set_value(\"Voice\", \"upper_end_frequency_range\", 8000)
+		config.set_value(\"Voice\", \"lowerPerc\", 0.05)
+		config.set_value(\"Voice\", \"upperPerc\", 0.95)
+		config.set_value(\"Voice\", \"minDiff\", 10)
+
+	get_tree().get_root().set_transparent_background(true)
+	spectrum = AudioServer.get_bus_effect_instance(0, 0)
+
+func _process(delta):
+	volume = spectrum.get_magnitude_for_frequency_range(
+		config.get_value(\"Voice\", \"lower_end_frequency_range\"),
+		config.get_value(\"Voice\", \"upper_end_frequency_range\")).length()
+	
+	# nomalization
+	_update_samples(volume)
+	
+	var lowerPerc = _percentile(config.get_value(\"Voice\", \"lowerPerc\"), samples)
+	var upperPerc = _percentile(config.get_value(\"Voice\", \"upperPerc\"), samples)
+	if lowerPerc*config.get_value(\"Voice\", \"minDiff\") > upperPerc:
+		volume = 0
+	elif upperPerc > 0:
+		volume = (volume*100)/upperPerc
+	else:
+		volume = 0
+	
+	#print(upperPerc, \"\\n\", volume)
+	volume = min(100, int(volume)) # the audio should be with a large portion within this range
+	
+	$sprite.set_target_value(volume)
+
+# c.f. https://www.indeed.com/career-advice/career-development/how-to-calculate-percentile
+func _percentile(k:float, data:Array) -> float:
+	var data_sorted = data.duplicate()
+	data_sorted.sort()
+	var index = int(round(k * len(data)))
+	return data_sorted[index-1]
+
+func _update_samples(volume):
+	if !samples_first_run:
+		samples[samples_pointer] = volume
+	else:
+		samples.append(volume)
+	samples_pointer += 1
+	if samples_pointer >= config.get_value(\"Audio\", \"max_samples\"):
+		samples_first_run = false
+		samples_pointer = 0
+"
+
+[sub_resource type="SpriteFrames" id=1]
+animations = [ {
+"frames": [ ExtResource( 12 ), ExtResource( 13 ), ExtResource( 11 ), ExtResource( 36 ), ExtResource( 33 ), ExtResource( 37 ), ExtResource( 35 ), ExtResource( 32 ), ExtResource( 34 ), ExtResource( 18 ), ExtResource( 14 ), ExtResource( 15 ), ExtResource( 29 ), ExtResource( 1 ), ExtResource( 2 ), ExtResource( 39 ), ExtResource( 31 ), ExtResource( 38 ), ExtResource( 30 ), ExtResource( 16 ), ExtResource( 17 ) ],
+"loop": true,
+"name": "default",
+"speed": 33.34
+} ]
+
+[sub_resource type="GDScript" id=4]
+script/source = "extends AnimatedSprite
+
+var current_value
+var target_value
+
+var bezier = preload(\"better_bezier.gd\")
+
+var config
+
+func set_target_value(value):
+	target_value.y = value
+
+func _ready():
+	config = ConfigFile.new()
+	var err = config.load(\"user://avatar.cfg\")
+	if err != OK:
+		config.set_value(\"Animation\", \"follow_speed\", 8)
+		config.set_value(\"Animation\", \"controlVector1\", Vector2(0.2, 0.75))
+		config.set_value(\"Animation\", \"controlVector2\", Vector2(0.95, 0.5))
+	
+	bezier = bezier.new(
+		config.get_value(\"Animation\", \"controlVector1\"),
+		config.get_value(\"Animation\", \"controlVector2\")
+	)
+	
+	current_value = Vector2(0, 0)
+	target_value = Vector2(0, 0)
+
+func _physics_process(delta):
+	current_value = current_value.linear_interpolate(
+		target_value, delta * config.get_value(\"Animation\", \"follow_speed\"))
+	#print(\"l_c \", bezier.f(target_value.y))
+	#print(\"c_v \", current_value.y)
+	#print(\"t_v \", target_value.y)
+
+func _process(delta):
+	var y = bezier.f(current_value.y/100).y*100
+	#print(y)
+	frame = int(y/5)
+"
+
+[node name="mic" type="AudioStreamPlayer"]
+stream = SubResource( 6 )
+autoplay = true
+mix_target = 2
+script = SubResource( 3 )
+
+[node name="sprite" type="AnimatedSprite" parent="."]
+position = Vector2( 270, 270 )
+scale = Vector2( 1.2, 1.2 )
+frames = SubResource( 1 )
+script = SubResource( 4 )

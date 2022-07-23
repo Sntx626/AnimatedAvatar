@@ -1,0 +1,46 @@
+; Engine configuration file.
+; It's best edited using the editor UI and not directly,
+; since the parameters that go here are not all obvious.
+;
+; Format:
+;   [section] ; section goes between []
+;   param=value ; assign values to parameters
+
+config_version=4
+
+_global_script_classes=[ {
+"base": "Reference",
+"class": "better_bezier",
+"language": "GDScript",
+"path": "res://better_bezier.gd"
+} ]
+_global_script_class_icons={
+"better_bezier": ""
+}
+
+[application]
+
+config/name="responsiveAvatar"
+run/main_scene="res://main.tscn"
+
+[audio]
+
+enable_audio_input=true
+
+[display]
+
+window/size/width=540
+window/size/height=540
+window/size/resizable=false
+window/size/borderless=true
+window/vsync/vsync_via_compositor=true
+window/per_pixel_transparency/allowed=true
+window/per_pixel_transparency/enabled=true
+
+[physics]
+
+common/enable_pause_aware_picking=true
+
+[rendering]
+
+environment/default_environment="res://default_env.tres"
